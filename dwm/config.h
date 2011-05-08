@@ -29,6 +29,8 @@ static const Rule rules[] = {
 static const float mfact      = 0.55; /* factor of master area size [0.05..0.95] */
 static const Bool resizehints = False; /* True means respect size hints in tiled resizals */
 
+#define LAYOUT_COUNT 4
+
 static const Layout layouts[] = {
     /* symbol     arrange function */
     { "[T]",      tile },    /* first entry is default */
