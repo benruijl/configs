@@ -191,6 +191,8 @@ static void scan(void);
 static void sendmon(Client *c, Monitor *m);
 static void setclientstate(Client *c, long state);
 static void setlayout(const Arg *arg);
+static void nextlayout(const Arg *arg);
+static void prevlayout(const Arg *arg);
 static void setmfact(const Arg *arg);
 static void setup(void);
 static void showhide(Client *c);
@@ -251,7 +253,6 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 	[UnmapNotify] = unmapnotify
 };
 static Atom wmatom[WMLast], netatom[NetLast];
-static Bool otherwm;
 static Bool running = True;
 static Cursor cursor[CurLast];
 static Display *dpy;
@@ -469,13 +470,10 @@ buttonpress(XEvent *e) {
 
 void
 checkotherwm(void) {
-	otherwm = False;
 	xerrorxlib = XSetErrorHandler(xerrorstart);
 	/* this causes an error if some other window manager is running */
 	XSelectInput(dpy, DefaultRootWindow(dpy), SubstructureRedirectMask);
 	XSync(dpy, False);
-	if(otherwm)
-		die("dwm: another window manager is already running\n");
 	XSetErrorHandler(xerror);
 	XSync(dpy, False);
 }
@@ -1018,12 +1016,11 @@ initfont(const char *fontstr) {
 		XFreeStringList(missing);
 	}
 	if(dc.font.set) {
-		XFontSetExtents *font_extents;
 		XFontStruct **xfonts;
 		char **font_names;
 
 		dc.font.ascent = dc.font.descent = 0;
-		font_extents = XExtentsOfFontSet(dc.font.set);
+		XExtentsOfFontSet(dc.font.set);
 		n = XFontsOfFontSet(dc.font.set, &xfonts, &font_names);
 		for(i = 0, dc.font.ascent = 0, dc.font.descent = 0; i < n; i++) {
 			dc.font.ascent = MAX(dc.font.ascent, (*xfonts)->ascent);
@@ -1112,14 +1109,12 @@ killclient(const Arg *arg) {
 
 void
 manage(Window w, XWindowAttributes *wa) {
-	static Client cz;
 	Client *c, *t = NULL;
 	Window trans = None;
 	XWindowChanges wc;
 
-	if(!(c = malloc(sizeof(Client))))
+	if(!(c = calloc(1, sizeof(Client))))
 		die("fatal: could not malloc() %u bytes\n", sizeof(Client));
-	*c = cz;
 	c->win = w;
 	updatetitle(c);
 	if(XGetTransientForHint(dpy, w, &trans))
@@ -1522,6 +1517,27 @@ setlayout(const Arg *arg) {
 		drawbar(selmon);
 }
 
+
+void
+nextlayout(const Arg *arg) {
+	Layout *l;
+	for (l=(Layout *)layouts;l != selmon->lt[selmon->sellt];l++);
+	if (l->symbol && (l + 1)->symbol)
+		setlayout(&((Arg) { .v = (l + 1) }));
+	else
+		setlayout(&((Arg) { .v = layouts }));
+}
+
+void
+prevlayout(const Arg *arg) {
+	Layout *l;
+	for (l=(Layout *)layouts;l != selmon->lt[selmon->sellt];l++);
+	if (l != layouts && (l - 1)->symbol)
+		setlayout(&((Arg) { .v = (l - 1) }));
+	else
+		setlayout(&((Arg) { .v = &layouts[LENGTH(layouts) - 2] }));
+}
+
 /* arg > 1.0 will set mfact absolutly */
 void
 setmfact(const Arg *arg) {
@@ -1605,7 +1621,6 @@ showhide(Client *c) {
 		XMoveWindow(dpy, c->win, c->x + 2 * sw, c->y);
 	}
 }
-
 
 void
 sigchld(int unused) {
@@ -2072,7 +2087,7 @@ xerrordummy(Display *dpy, XErrorEvent *ee) {
  * is already running. */
 int
 xerrorstart(Display *dpy, XErrorEvent *ee) {
-	otherwm = True;
+	die("dwm: another window manager is already running\n");
 	return -1;
 }
 
